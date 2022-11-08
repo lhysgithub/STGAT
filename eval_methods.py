@@ -81,7 +81,8 @@ def get_val_performance_data(total_err_scores, normal_scores, gt_labels, adjust,
     total_topk_err_scores = []
     topk_err_score_map = []
     # 取出最大的topK个scores值
-    total_topk_err_scores = np.sum(np.take_along_axis(total_err_scores, topk_indices, axis=0), axis=0)
+    total_topk_err_scores = np.sum(np.take_along_axis(total_err_scores, topk_indices, axis=0), axis=0) # lhy 从多个维度中，取出k个最大scores
+    # 也就是说，存在其他
 
     # 得到阈值
     thresold = np.max(normal_scores)

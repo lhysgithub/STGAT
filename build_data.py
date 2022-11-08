@@ -45,10 +45,14 @@ class TimeDataset(Dataset):
 
         labels = []
         if 'train' in mode:
-            x_data = raw_data
-            labels.append([0]*x_data.shape[0])
+            x_data = raw_data.iloc[:, :-1]  # 取出数据 for smd
+            # x_data = raw_data
+            # x_data = raw_data.iloc[:, :-5]  # 取出数据
+            # labels.append([0]*x_data.shape[0])
+            labels = raw_data.iloc[:, -1]  # 取出标签
         elif 'test' in mode:
             x_data = raw_data.iloc[:, :-1]  # 取出数据
+            # x_data = raw_data.iloc[:, :-5]  # 取出数据
             labels = raw_data.iloc[:,-1]  # 取出标签
 
         data = x_data
@@ -121,8 +125,9 @@ def get_loaders(train_dataset, seed, batch, val_ratio=0.1): # val_ratio 验证�
     return train_dataloader, val_dataloader
 
 def get_adge_index(dataset, train, config):
-    feature_map = get_feature_map(dataset)  # 获取特征
-    fc_struc = get_fc_graph_struc(dataset)  # 获取所有节点与其他节点的连接关系字典
+    # feature_map = get_feature_map(dataset)  # 获取特征
+    feature_map = list(train)[:-1]
+    fc_struc = get_fc_graph_struc(feature_map)  # 获取所有节点与其他节点的连接关系字典
 
     fc_edge_index = build_loc_net(fc_struc, list(train.columns), feature_map=feature_map)  # 获取所有节点与其子集节点的连接矩阵
     fc_edge_index = torch.tensor(fc_edge_index, dtype=torch.long)  # 将连接矩阵转换成Tensor,torch.Size([2, 702])
@@ -136,7 +141,8 @@ def get_adge_index(dataset, train, config):
 
     return (fc_edge_index, tc_edge_index)
 
-def dataloda(config):
+
+def get_dataset_pd(config):
     dataset = config.dataset
     if 'WT' in dataset:
         train_orig = pd.read_csv(f'./data/{dataset}/train_orig.csv', sep=',').dropna(axis=0)
@@ -163,9 +169,30 @@ def dataloda(config):
         test = np.hstack((test, dataset_label[:, np.newaxis]))
 
         train = pd.DataFrame(train, columns=train_columns)
+        train["y"] = np.zeros(train.shape[0])
         test = pd.DataFrame(test, columns=test_columns)
+        return filter_data(train, test, config)
+    elif "SMD" in dataset:
+        train_df = pd.read_csv(f'./data/ServerMachineDataset/train/machine-1-1.txt', header=None, sep=",", dtype = np.float32)
+        test_df = pd.read_csv(f'./data/ServerMachineDataset/test/machine-1-1.txt', header=None, sep=",", dtype=np.float32)
+        train_df["y"] = np.zeros(train_df.shape[0])
 
-        # train, test = down_sample(train, test, 10)
+        # Get test anomaly labels
+        test_labels = np.genfromtxt(f'./data/ServerMachineDataset/test_label/machine-1-1.txt', dtype=np.float32, delimiter=',')
+        test_df["y"] = test_labels
+        return filter_data(train_df, test_df, config)
+
+
+def filter_data(train, test, config):
+    select = config.select
+    if "y" not in select:
+        select.append("y")
+    return pd.DataFrame(train, columns=select), pd.DataFrame(test, columns=select)
+
+
+def dataloda(config):
+    dataset = config.dataset
+    train, test = get_dataset_pd(config)
 
     edge_index = get_adge_index(dataset, train, config)
 

@@ -4,6 +4,14 @@ import glob
 Reference https://github.com/d-ailin/GDN
 '''
 
+# def get_feature_map(dataset):
+#     feature_file = open(f'./data/{dataset}/list.txt', 'r')
+#     feature_list = []
+#     for ft in feature_file:
+#         feature_list.append(ft.strip())
+#
+#     return feature_list
+
 def get_feature_map(dataset):
     feature_file = open(f'./data/{dataset}/list.txt', 'r')
     feature_list = []
@@ -13,13 +21,14 @@ def get_feature_map(dataset):
     return feature_list
 
 # graph is 'fully-connect'
-def get_fc_graph_struc(dataset):
-    feature_file = open(f'./data/{dataset}/list.txt', 'r')
+def get_fc_graph_struc(feature_list):
+    # dataset
+    # feature_file = open(f'./data/{dataset}/list.txt', 'r')
 
     struc_map = {}
-    feature_list = []
-    for ft in feature_file:
-        feature_list.append(ft.strip())
+    # feature_list = []
+    # for ft in feature_file:
+    #     feature_list.append(ft.strip())
 
     for ft in feature_list: # 遍历所有特征
         if ft not in struc_map:  # 构建结构映射字典struc_map
@@ -68,5 +77,5 @@ def get_prior_graph_struc(dataset):
 
     return struc_map
 
-if __name__ == '__main__':
-    get_fc_graph_struc('SWat')
+# if __name__ == '__main__':
+#     get_fc_graph_struc('SWat')

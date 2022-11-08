@@ -76,6 +76,7 @@ class Main(object):
         # 依据数据集获取网络输出的维度，对于MSL以及SMAP数据集，由于数据由连续的遥测数据以及one-hot的控制指令组成，
             # 所以在预测和重建过程中仅对遥测数据进行，输出维度为1
         self.n_features = self.train_dataset.raw_data.shape[1]   # 获取数据真实维度
+        # self.n_features = 5
         self.target_dims = get_target_dims(config.dataset)       # 根据数据集对输出维度进行调整
         if self.target_dims is None:
             out_dim = self.n_features
@@ -116,10 +117,11 @@ class Main(object):
             model.train()
             acu_loss = 0
             time_start = time.time()
-            for x, y, attack_labels, fc_edge_index, tc_edge_index in self.train_dataloader:
+            # todo check fc tc edge 是否有问题？ lhy
+            for x, y, attack_labels, fc_edge_index, tc_edge_index in tqdm(self.train_dataloader):
                 x, y, fc_edge_index, tc_edge_index = [item.float().to(self.config.device) for item in [x, y,fc_edge_index, tc_edge_index]]
-                x = x.permute(0,2,1)
-                y = y.unsqueeze(1)
+                x = x.permute(0,2,1) # lhy why?
+                y = y.unsqueeze(1) # lhy why?
 
                 # 正向传播
                 recons = model(x, fc_edge_index, tc_edge_index)
@@ -146,7 +148,7 @@ class Main(object):
             # validation
             model.eval()
             val_loss = []
-            for x, y, attack_labels, fc_edge_index, tc_edge_index  in self.val_dataloader:
+            for x, y, attack_labels, fc_edge_index, tc_edge_index  in tqdm(self.val_dataloader):
                 x, y, fc_edge_index, tc_edge_index  = [item.float().to(self.config.device) for item in [x, y, fc_edge_index, tc_edge_index ]]
                 x = x.permute(0,2,1)
                 y = y.unsqueeze(1)
@@ -426,7 +428,7 @@ if __name__ == '__main__':
     parser.add_argument("-gamma", type=float, default=1)
     parser.add_argument("-with_adjust", type=str2bool, default=False)
 
-    parser.add_argument('-batch_train_id', help='train id', type=str, default='25092021_115849')
+    parser.add_argument('-batch_train_id', help='train id', type=str, default='03112022_2132')
     parser.add_argument('-batch_train_id_back', help='train id', type=str, default='init')
 
     args = parser.parse_args()
@@ -440,5 +442,31 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True   # 为True的话，每次返回的卷积算法将是确定的，即默认算法。如果配合上设置 Torch 的随机种子为固定值的话，应该可以保证每次运行网络的时候相同输入的输出是固定的
     os.environ['PYTHONHASHSEED'] = str(args.random_seed) # 为0则禁止hash随机化，使得实验可复现。
 
-    main = Main(args)
-    main.run()
+    dataset = "WT/WT23"
+    feature = ["env_temp", "hub_speed", "wind_speed", "f_temp", "b_temp", "power", "grid_power", "fb_diff", "fe_diff","be_diff"]
+    # for currentId in range(2047):
+    for id in range(1):
+        currentId = pow(2,id)
+        current_id_bin = "{:0>10b}".format(currentId)
+        if current_id_bin[7] == '0':
+            current_id_bin_l = list(current_id_bin)
+            current_id_bin_l[7]='1'
+            current_id_bin = "".join(current_id_bin_l)
+        print(current_id_bin)
+        # current_id_bin = "1111111111"
+        args.batch_train_id = current_id_bin
+        # feature2 = random.sample(feature, 4)
+        feature2 = []
+        for i in range(10):
+            if current_id_bin[i] == '0':
+                feature2.append(feature[i])
+        print(feature2)
+        train_orig = pd.read_csv(f'./data/{dataset}/train_orig_23.csv', sep=',').dropna(axis=0)
+        train_orig.drop(labels=feature2, axis=1, inplace=True)
+        train_orig.to_csv(f'./data/{dataset}/train_orig.csv', index=None)
+        print(list(train_orig))
+        test_orig = pd.read_csv(f'./data/{dataset}/test_orig_23.csv', sep=',').dropna(axis=0)
+        test_orig.drop(labels=feature2, axis=1, inplace=True)
+        test_orig.to_csv(f'./data/{dataset}/test_orig.csv', index=None)
+        main = Main(args)
+        main.run()
