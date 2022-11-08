@@ -31,7 +31,7 @@ if __name__ == '__main__':
     print(dl.argmax())
 
     plt.figure()
-    plt.scatter(np.arange(len(single_f1)),single_f1,c="b",label='single',marker="^")
+    plt.scatter(np.arange(len(single_f1)), single_f1, c="b", label='single', marker="^")
     plt.scatter(np.arange(len(double_f1)), double_f1, c="r", label='double')
     plt.legend(loc='best', fontsize=8)
     plt.savefig(f"analysis/{dataset}_2_f.pdf")
