@@ -173,14 +173,35 @@ def get_dataset_pd(config):
         test = pd.DataFrame(test, columns=test_columns)
         return filter_data(train, test, config)
     elif "SMD" in dataset:
-        train_df = pd.read_csv(f'./data/ServerMachineDataset/train/machine-1-1.txt', header=None, sep=",", dtype = np.float32)
-        test_df = pd.read_csv(f'./data/ServerMachineDataset/test/machine-1-1.txt', header=None, sep=",", dtype=np.float32)
+        variable = "1-1"
+        train_df = pd.read_csv(f'./data/ServerMachineDataset/train/machine-{variable}.txt', header=None, sep=",", dtype = np.float32)
+        test_df = pd.read_csv(f'./data/ServerMachineDataset/test/machine-{variable}.txt', header=None, sep=",", dtype=np.float32)
         train_df["y"] = np.zeros(train_df.shape[0])
 
         # Get test anomaly labels
-        test_labels = np.genfromtxt(f'./data/ServerMachineDataset/test_label/machine-1-1.txt', dtype=np.float32, delimiter=',')
+        test_labels = np.genfromtxt(f'./data/ServerMachineDataset/test_label/machine-{variable}.txt', dtype=np.float32, delimiter=',')
         test_df["y"] = test_labels
         return filter_data(train_df, test_df, config)
+    elif "SMAP" in dataset:
+        variable = "A-7"
+        train = np.load(f'./data/SMAP/train/{variable}.npy')
+        train_df = pd.DataFrame(train)
+        train_df["y"] = np.zeros(train_df.shape[0])
+
+        test = np.load(f'./data/SMAP/test/{variable}.npy')
+        test_df = pd.DataFrame(test)
+        test_df["y"] = np.zeros(test_df.shape[0])
+        # Set test anomaly labels manually
+        test_df.iloc[4690:4774, -1] = 1
+
+        # Set test anomaly labels from files
+        labels = pd.read_csv(f'./data/SMAP/labeled_anomalies.csv', sep=",", index_col="chan_id")
+        label_str = labels.loc[variable, "anomaly_sequences"]
+        label_list = json.loads(label_str)
+        for i in label_list:
+            test_df.iloc[i[0]:i[1], -1] = 1
+        return filter_data(train_df, test_df, config)
+
 
 
 def filter_data(train, test, config):
@@ -221,14 +242,15 @@ def get_target_dims(dataset):
     :return: index of data dimension that should be modeled (forecasted and reconstructed),
                      returns None if all input dimensions should be modeled
     """
-    if dataset == "SMAP":
-        return [0]
-    elif dataset == "MSL":
-        return [0]
-    elif dataset == "SMD" or dataset == "SWat" or dataset == "WADI" or dataset == "WT/WT03" or dataset == "WT/WT23":
-        return None
-    else:
-        raise ValueError("unknown dataset " + str(dataset))
+    # if dataset == "SMAP":
+    #     return [0]
+    # elif dataset == "MSL":
+    #     return [0]
+    # elif dataset == "SMD" or dataset == "SWat" or dataset == "WADI" or dataset == "WT/WT03" or dataset == "WT/WT23":
+    #     return None
+    # else:
+    #     raise ValueError("unknown dataset " + str(dataset))
+    return None
 
 def str2bool(v):
     if isinstance(v, bool):

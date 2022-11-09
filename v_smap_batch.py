@@ -20,7 +20,7 @@ if __name__ == '__main__':
     select = "0_28_5_27_30_34_22_37_3_35_18_15_12_24_17_16_33_25_36_21_13_23_7_4_32_9_10_14_1_20_29_11_6_26_2_8_31_19"
     selected = []
     best_path = "20221108_smd"
-    compose_number = 3
+    compose_number = 8
     old_best_f1 = 0
     best_f1 = 0
     for i in range(compose_number):

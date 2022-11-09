@@ -255,7 +255,9 @@ class Main(object):
         :param lookback: lookback (window size) used in model
         """
 
-        # Remove errors for time steps when transition to new channel (as this will be impossible for model to predict)
+        # return scores  # lhy
+
+        # # Remove errors for time steps when transition to new channel (as this will be impossible for model to predict)
         if dataset.upper() not in ['SMAP', 'MSL']:
             return scores
 
@@ -320,8 +322,8 @@ class Main(object):
         # val_score = self.score_smooth(val_score)
 
         # 在gat-pytorch里面有个标签调整的操作，即在数据拼接的位置对分数进行调整。
-        val_score = self.adjust_anomaly_scores(val_score, self.config.dataset, True, self.config.slide_win,True)
         test_score = self.adjust_anomaly_scores(test_score, self.config.dataset, False, self.config.slide_win,True)
+        # val_score = self.adjust_anomaly_scores(val_score, self.config.dataset, True, self.config.slide_win, True)
 
         test_y = test_y[:test_score.shape[0]].astype(int)
 
@@ -449,28 +451,35 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True   # 为True的话，每次返回的卷积算法将是确定的，即默认算法。如果配合上设置 Torch 的随机种子为固定值的话，应该可以保证每次运行网络的时候相同输入的输出是固定的
     os.environ['PYTHONHASHSEED'] = str(args.random_seed) # 为0则禁止hash随机化，使得实验可复现。
 
-    args.dataset = "SMD"
-    subdir = "1-1"
-    args.batch_train_id = "20221108_smd"
-    args.select = []
-    temp = []
-    best_path = "20221108_smd"
-    for j in range(38):
-        best_f1 = 0
-        best_id = -1
-        for i in range(38):
-            if i in temp:
-                continue
-            args.batch_train_id = f"{best_path}_{i}"
-            args.select = [i]+temp
-            main = Main(args)
-            main.run()
-            f1 = get_f1(f"output/{args.dataset}/{subdir}/{args.batch_train_id}/summary_file.txt")
-            if best_f1 < f1:
-                best_f1 = f1
-                best_id = i
-        best_path = best_path+f"_{best_id}"
-        temp = temp + [best_id]
+    args.dataset = "SMAP"
+    variables = ["A-1", "A-2", "A-3", "A-4", "A-5", "A-6", "A-7", "A-8", "A-9", "B-1", "C-1", "D-1", "D-2", "D-3",
+                 "D-4", "D-5", "D-6", "D-7", "D-8", "D-9", "D-10", "D-11", "D-12", "D-13", "D-14", "D-15", "D-16",
+                 "E-1", "E-2", "E-3", "E-4", "E-5", "E-6", "E-7", "E-8", "E-9", "E-10", "E-11", "E-12", "E-13"]
+    best_path = "20221109_smap"
+    args.batch_train_id = best_path
+    args.select = list(range(25))
+
+    main = Main(args)
+    main.run()
+
+    feature_number = 25
+    # temp = []
+    # for j in range(feature_number):
+    #     best_f1 = 0
+    #     best_id = -1
+    #     for i in range(feature_number):
+    #         if i in temp:
+    #             continue
+    #         args.batch_train_id = f"{best_path}_{i}"
+    #         args.select = [i]+temp
+    #         main = Main(args)
+    #         main.run()
+    #         f1 = get_f1(f"output/{args.dataset}/{subdir}/{args.batch_train_id}/summary_file.txt")
+    #         if best_f1 < f1:
+    #             best_f1 = f1
+    #             best_id = i
+    #     best_path = best_path+f"_{best_id}"
+    #     temp = temp + [best_id]
 
 
 
