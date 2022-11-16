@@ -1,5 +1,6 @@
 import numpy as np
 import more_itertools as mit
+import pandas as pd
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, mean_squared_error, f1_score, precision_recall_fscore_support,confusion_matrix, precision_score, recall_score, roc_auc_score
 
 def adjust_predicts(score, label, threshold, pred=None, calc_latency=False):
@@ -75,7 +76,7 @@ def get_val_performance_data(total_err_scores, normal_scores, gt_labels, adjust,
     normal_scores = normal_scores.T
     gt_labels = np.concatenate(gt_labels).tolist()
     total_features = total_err_scores.shape[0]
-    # 取出最大的topK个scores值的索引值,得到每条样本中分数最大的特征索引值
+    # 取出最大的topK个scores值的索引值,得到每条样本中分数最大的特征索引值 # todo check 这里取最大是否合适
     topk_indices = np.argpartition(total_err_scores, range(total_features - topk - 1, total_features), axis=0)[
                    -topk:]
     total_topk_err_scores = []
@@ -84,8 +85,8 @@ def get_val_performance_data(total_err_scores, normal_scores, gt_labels, adjust,
     total_topk_err_scores = np.sum(np.take_along_axis(total_err_scores, topk_indices, axis=0), axis=0) # lhy 从多个维度中，取出k个最大scores
     # 也就是说，存在其他
 
-    # 得到阈值
-    thresold = np.max(normal_scores)
+    # 得到阈值 # todo 2 check 正常序列的平均重构误差，是否有下降。如果重点维度组合的正常序列的平均重构误差有所下降，那么直接用现在的validation set 就可以进行meta learning了，否则使用带标签的数据集作为validation set 然后进行meta learning。meta learning objective 是优化inner loss weight 以降低正常序列的平均重构误差或者提升bf_search后的f1值。
+    thresold = np.mean(normal_scores) # todo fix 这个阈值设置的就很离谱，直接是将正常序列的重构误差的最大值作为thresold，至少应该是利用validation，然后用bf_search，算出来的threshold吧
 
     if adjust:
         pred_labels, latency = adjust_predicts(total_topk_err_scores, np.array(gt_labels), thresold, calc_latency=True)
@@ -99,10 +100,14 @@ def get_val_performance_data(total_err_scores, normal_scores, gt_labels, adjust,
         pred_labels[i] = int(pred_labels[i])
         gt_labels[i] = int(gt_labels[i])
 
-    pre = precision_score(gt_labels, pred_labels)
-    rec = recall_score(gt_labels, pred_labels)
-    f1 = f1_score(gt_labels, pred_labels)
-    C = confusion_matrix(gt_labels, pred_labels)
+    gt_np = np.array(gt_labels)
+    gt_pd = pd.Series(gt_np)
+    # print(gt_pd.describe())
+
+    pre = precision_score(gt_np, pred_labels)
+    rec = recall_score(gt_np, pred_labels)
+    f1 = f1_score(gt_np, pred_labels)
+    C = confusion_matrix(gt_np, pred_labels)
 
     auc_score = roc_auc_score(gt_labels, total_topk_err_scores)
 
@@ -110,8 +115,8 @@ def get_val_performance_data(total_err_scores, normal_scores, gt_labels, adjust,
         "f1": f1,
         "precision": pre,
         "recall": rec,
-        "TP": C[0, 0],
-        "TN": C[1, 1],
+        "TP": C[1, 1],
+        "TN": C[0, 0],
         "FP": C[0, 1],
         "FN": C[1, 0],
         "threshold": thresold,

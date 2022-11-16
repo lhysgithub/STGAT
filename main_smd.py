@@ -11,7 +11,7 @@ import random
 import torch
 import os
 from stgat import STGAT
-from build_data import dataloda, get_target_dims, MyJsonEncoder,str2bool
+from build_data import dataload, get_target_dims, MyJsonEncoder,str2bool
 from torch import nn
 import time
 from pytool import EarlyStopping
@@ -38,13 +38,11 @@ class Main(object):
         self.val_dataloader, \
         self.test_dataloader,\
         self.train_all_dataloader\
-            = dataloda(config)
+            = dataload(config)
 
         # 构建输出及日志路径
-        if config.dataset == 'SMD':
-            output_path = f'output/SMD/{config.group}'
-        elif config.dataset in ['MSL', 'SMAP', 'SWat', 'WADI', 'WT/WT03', 'WT/WT23']:
-            output_path = f'output/{config.dataset}'
+        if config.dataset in ['SMD', 'MSL', 'SMAP', 'SWat', 'WADI', 'WT']:
+            output_path = f'output/{config.dataset}/{config.variable}/'
         else:
             raise Exception(f'Dataset "{config.dataset}" not available.')
 
@@ -107,7 +105,7 @@ class Main(object):
     def train(self):
         model = self.stgat
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=self.config.lr)
         forecast_criterion = nn.MSELoss().to(self.config.device)
         recon_criterion = nn.MSELoss().to(self.config.device)
 
@@ -117,7 +115,7 @@ class Main(object):
             model.train()
             acu_loss = 0
             time_start = time.time()
-            # todo check fc tc edge 是否有问题？ lhy
+            # check fc tc edge 是否有问题？ lhy 没问题
             for x, y, attack_labels, fc_edge_index, tc_edge_index in tqdm(self.train_dataloader):
                 x, y, fc_edge_index, tc_edge_index = [item.float().to(self.config.device) for item in [x, y,fc_edge_index, tc_edge_index]]
                 x = x.permute(0,2,1) # lhy why?
@@ -255,44 +253,46 @@ class Main(object):
         :param lookback: lookback (window size) used in model
         """
 
+        return scores
+
         # Remove errors for time steps when transition to new channel (as this will be impossible for model to predict)
-        if dataset.upper() not in ['SMAP', 'MSL']:
-            return scores
-
-        adjusted_scores = scores.copy()
-        if is_train:
-            md = pd.read_csv(f'./data/{dataset}/{dataset.lower()}_train_md.csv')
-        else:
-            md = pd.read_csv(f'./data/{dataset}/labeled_anomalies.csv')
-            md = md[md['spacecraft'] == dataset.upper()]
-
-        md = md[md['chan_id'] != 'P-2']
-
-        # Sort values by channel
-        md = md.sort_values(by=['chan_id'])
-
-        # Getting the cumulative start index for each channel
-        sep_cuma = np.cumsum(md['num_values'].values) - lookback
-        sep_cuma = sep_cuma[:-1]
-        buffer = np.arange(1, 20)
-        i_remov = np.sort(np.concatenate((sep_cuma, np.array([i + buffer for i in sep_cuma]).flatten(),
-                                          np.array([i - buffer for i in sep_cuma]).flatten())))
-        i_remov = i_remov[(i_remov < len(adjusted_scores)) & (i_remov >= 0)]
-        i_remov = np.sort(np.unique(i_remov))
-        if len(i_remov) != 0:
-            adjusted_scores[i_remov] = 0
-
-        # Normalize each concatenated part individually
-        sep_cuma = np.cumsum(md['num_values'].values) - lookback
-        s = [0] + sep_cuma.tolist()
-        for c_start, c_end in [(s[i], s[i + 1]) for i in range(len(s) - 1)]:
-            e_s = adjusted_scores[c_start: c_end + 1]
-
-            if scale and e_s.size != 0:
-                e_s = (e_s - np.min(e_s)) / (np.max(e_s) - np.min(e_s))
-            adjusted_scores[c_start: c_end + 1] = e_s
-
-        return adjusted_scores
+        # if dataset.upper() not in ['SMAP', 'MSL']:
+        #     return scores
+        #
+        # adjusted_scores = scores.copy()
+        # if is_train:
+        #     md = pd.read_csv(f'./data/{dataset}/{dataset.lower()}_train_md.csv')
+        # else:
+        #     md = pd.read_csv(f'./data/{dataset}/labeled_anomalies.csv')
+        #     md = md[md['spacecraft'] == dataset.upper()]
+        #
+        # md = md[md['chan_id'] != 'P-2']
+        #
+        # # Sort values by channel
+        # md = md.sort_values(by=['chan_id'])
+        #
+        # # Getting the cumulative start index for each channel
+        # sep_cuma = np.cumsum(md['num_values'].values) - lookback
+        # sep_cuma = sep_cuma[:-1]
+        # buffer = np.arange(1, 20)
+        # i_remov = np.sort(np.concatenate((sep_cuma, np.array([i + buffer for i in sep_cuma]).flatten(),
+        #                                   np.array([i - buffer for i in sep_cuma]).flatten())))
+        # i_remov = i_remov[(i_remov < len(adjusted_scores)) & (i_remov >= 0)]
+        # i_remov = np.sort(np.unique(i_remov))
+        # if len(i_remov) != 0:
+        #     adjusted_scores[i_remov] = 0
+        #
+        # # Normalize each concatenated part individually
+        # sep_cuma = np.cumsum(md['num_values'].values) - lookback
+        # s = [0] + sep_cuma.tolist()
+        # for c_start, c_end in [(s[i], s[i + 1]) for i in range(len(s) - 1)]:
+        #     e_s = adjusted_scores[c_start: c_end + 1]
+        #
+        #     if scale and e_s.size != 0:
+        #         e_s = (e_s - np.min(e_s)) / (np.max(e_s) - np.min(e_s))
+        #     adjusted_scores[c_start: c_end + 1] = e_s
+        #
+        # return adjusted_scores
 
     def score_smooth(self, err_scores):
         smoothed_err_scores = np.zeros(err_scores.shape)
@@ -306,13 +306,14 @@ class Main(object):
         print('Calculate Score...')
         test_y = np.concatenate(test_label)
 
-        val_pred_df, val_anomaly_scores = self.get_score(val_recons, X_val)
+        val_pred_df, val_anomaly_scores = self.get_score(val_recons, X_val)# todo 1 fix train_recons != val_recons 增加带标签的validation set
         test_pred_df, test_anomaly_scores = self.get_score(test_recons, X_test)
 
-        np.save(f"{self.save_path}/val_anomaly_scores.npy", val_anomaly_scores)
-        np.save(f"{self.save_path}/test_anomaly_scores.npy", test_anomaly_scores)
+        # np.save(f"{self.save_path}/val_anomaly_scores.npy", val_anomaly_scores)
+        # np.save(f"{self.save_path}/test_anomaly_scores.npy", test_anomaly_scores)
 
         # 如果分数进行了归一化
+        # lhy 此处使用了多维度重构误差的平均值，作为每一个时间戳的异常分数
         test_score = test_pred_df['A_Score_Global'].values
         val_score = val_pred_df['A_Score_Global'].values
         #
@@ -320,7 +321,7 @@ class Main(object):
         # val_score = self.score_smooth(val_score)
 
         # 在gat-pytorch里面有个标签调整的操作，即在数据拼接的位置对分数进行调整。
-        val_score = self.adjust_anomaly_scores(val_score, self.config.dataset, True, self.config.slide_win,True)
+        # val_score = self.adjust_anomaly_scores(val_score, self.config.dataset, True, self.config.slide_win,True)
         test_score = self.adjust_anomaly_scores(test_score, self.config.dataset, False, self.config.slide_win,True)
 
         test_y = test_y[:test_score.shape[0]].astype(int)
@@ -335,6 +336,7 @@ class Main(object):
 
         return bf_eval, m_eval
 
+
     def eval_to_float(self, bf_eval, m_eval):
         for k, v in bf_eval.items():
             bf_eval[k] = float(v)
@@ -343,6 +345,7 @@ class Main(object):
                 m_eval[k] = float(v)
 
         return bf_eval, m_eval
+
 
     def run(self):
         if self.config.batch_train_id_back == self.config.batch_train_id:
@@ -358,13 +361,13 @@ class Main(object):
         test_recons, X_test, test_label = self.predict(self.test_dataloader)
 
         # 保存输出
-        np.save(f"{self.save_path}/test_actual.npy", np.concatenate(X_test))
-        np.save(f"{self.save_path}/test_recons.npy", np.concatenate(test_recons))
-        np.save(f"{self.save_path}/test_label.npy", np.concatenate(test_label))
-
-        np.save(f"{self.save_path}/train_actual.npy", np.concatenate(X_train))
-        np.save(f"{self.save_path}/train_recons.npy", np.concatenate(train_recons))
-        np.save(f"{self.save_path}/train_label.npy", np.concatenate(train_label))
+        # np.save(f"{self.save_path}/test_actual.npy", np.concatenate(X_test))
+        # np.save(f"{self.save_path}/test_recons.npy", np.concatenate(test_recons))
+        # np.save(f"{self.save_path}/test_label.npy", np.concatenate(test_label))
+        #
+        # np.save(f"{self.save_path}/train_actual.npy", np.concatenate(X_train))
+        # np.save(f"{self.save_path}/train_recons.npy", np.concatenate(train_recons))
+        # np.save(f"{self.save_path}/train_label.npy", np.concatenate(train_label))
 
         # 依据预测值、实际值以及实际值的标签求取评分
         bf_eval, m_eval = self.model_metrics(test_recons, X_test, test_label,
@@ -450,22 +453,24 @@ if __name__ == '__main__':
     os.environ['PYTHONHASHSEED'] = str(args.random_seed) # 为0则禁止hash随机化，使得实验可复现。
 
     args.dataset = "SMD"
-    subdir = "1-1"
+    args.variable = "1-4"
+    args.group = args.variable
     args.batch_train_id = "20221108_smd"
     args.select = []
     temp = []
     best_path = "20221108_smd"
-    for j in range(38):
+    feature_number = 38
+    for j in range(feature_number):
         best_f1 = 0
         best_id = -1
-        for i in range(38):
+        for i in range(feature_number):
             if i in temp:
                 continue
             args.batch_train_id = f"{best_path}_{i}"
             args.select = [i]+temp
             main = Main(args)
             main.run()
-            f1 = get_f1(f"output/{args.dataset}/{subdir}/{args.batch_train_id}/summary_file.txt")
+            f1 = get_f1(f"output/{args.dataset}/{args.variable}/{args.batch_train_id}/summary_file.txt")
             if best_f1 < f1:
                 best_f1 = f1
                 best_id = i

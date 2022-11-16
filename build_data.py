@@ -144,36 +144,50 @@ def get_adge_index(dataset, train, config):
 
 def get_dataset_pd(config):
     dataset = config.dataset
-    if 'WT' in dataset:
-        train_orig = pd.read_csv(f'./data/{dataset}/train_orig.csv', sep=',').dropna(axis=0)
-        test_orig = pd.read_csv(f'./data/{dataset}/test_orig.csv', sep=',').dropna(axis=0)
+    # if 'WT' in dataset:
+    #     train_orig = pd.read_csv(f'./data/{dataset}/train_orig.csv', sep=',').dropna(axis=0)
+    #     test_orig = pd.read_csv(f'./data/{dataset}/test_orig.csv', sep=',').dropna(axis=0)
+    #
+    #     # train, test = train_orig.drop(columns='采样时间'), test_orig.drop(columns='采样时间')
+    #     train, test = train_orig, test_orig
+    #
+    #     test_label = test["attack"]
+    #     dataset_label = np.array(test_label)
+    #
+    #     test_columns = test.columns  # attack
+    #     test.drop(["attack"], axis=1, inplace=True)
+    #
+    #     train_columns = train.columns
+    #
+    #     if config.normalize:
+    #         train_normalizer = preprocessing.MinMaxScaler().fit(train)
+    #         train = train_normalizer.transform(train)
+    #         test = train_normalizer.transform(test)
+    #     else:
+    #         test = np.array(test)
+    #
+    #     test = np.hstack((test, dataset_label[:, np.newaxis]))
+    #
+    #     train = pd.DataFrame(train, columns=train_columns)
+    #     train["y"] = np.zeros(train.shape[0])
+    #     test = pd.DataFrame(test, columns=test_columns)
+    #     return filter_data(train, test, config)
+    if "WT" in dataset:
+        variable = config.variable
+        train_df = pd.read_csv(f'./data/WT/{variable}/train_orig.csv', sep=",", header=None,
+                               dtype=np.float32).dropna(axis=0)
+        test_df = pd.read_csv(f'./data/WT/{variable}/test_orig.csv', sep=",", header=None,
+                              dtype=np.float32).dropna(axis=0)
+        train_df["y"] = np.zeros(train_df.shape[0])
 
-        # train, test = train_orig.drop(columns='采样时间'), test_orig.drop(columns='采样时间')
-        train, test = train_orig, test_orig
-
-        test_label = test["attack"]
-        dataset_label = np.array(test_label)
-
-        test_columns = test.columns  # attack
-        test.drop(["attack"], axis=1, inplace=True)
-
-        train_columns = train.columns
-
-        if config.normalize:
-            train_normalizer = preprocessing.MinMaxScaler().fit(train)
-            train = train_normalizer.transform(train)
-            test = train_normalizer.transform(test)
-        else:
-            test = np.array(test)
-
-        test = np.hstack((test, dataset_label[:, np.newaxis]))
-
-        train = pd.DataFrame(train, columns=train_columns)
-        train["y"] = np.zeros(train.shape[0])
-        test = pd.DataFrame(test, columns=test_columns)
-        return filter_data(train, test, config)
+        # Get test anomaly labels
+        # test_labels = test_df[len(test_df)-1]
+        # del test_df[len(test_df)-1]
+        # test_df["y"] = test_labels
+        test_df.rename(columns={10:'y'},inplace=True)
+        return filter_data(train_df, test_df, config)
     elif "SMD" in dataset:
-        variable = "1-1"
+        variable = config.variable
         train_df = pd.read_csv(f'./data/ServerMachineDataset/train/machine-{variable}.txt', header=None, sep=",", dtype = np.float32)
         test_df = pd.read_csv(f'./data/ServerMachineDataset/test/machine-{variable}.txt', header=None, sep=",", dtype=np.float32)
         train_df["y"] = np.zeros(train_df.shape[0])
@@ -183,7 +197,7 @@ def get_dataset_pd(config):
         test_df["y"] = test_labels
         return filter_data(train_df, test_df, config)
     elif "SMAP" in dataset:
-        variable = "A-7"
+        variable = config.variable
         train = np.load(f'./data/SMAP/train/{variable}.npy')
         train_df = pd.DataFrame(train)
         train_df["y"] = np.zeros(train_df.shape[0])
@@ -192,7 +206,7 @@ def get_dataset_pd(config):
         test_df = pd.DataFrame(test)
         test_df["y"] = np.zeros(test_df.shape[0])
         # Set test anomaly labels manually
-        test_df.iloc[4690:4774, -1] = 1
+        # test_df.iloc[4690:4774, -1] = 1
 
         # Set test anomaly labels from files
         labels = pd.read_csv(f'./data/SMAP/labeled_anomalies.csv', sep=",", index_col="chan_id")
@@ -211,7 +225,7 @@ def filter_data(train, test, config):
     return pd.DataFrame(train, columns=select), pd.DataFrame(test, columns=select)
 
 
-def dataloda(config):
+def dataload(config):
     dataset = config.dataset
     train, test = get_dataset_pd(config)
 
@@ -235,6 +249,7 @@ def dataloda(config):
                                       shuffle=False, num_workers=0)
 
     return train_dataset, test_dataset, train_dataloader, val_dataloader, test_dataloader, train_all_dataloader
+
 
 def get_target_dims(dataset):
     """
