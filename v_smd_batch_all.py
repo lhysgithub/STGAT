@@ -85,15 +85,17 @@ def get_data_all(metric,base_path):
 if __name__ == '__main__':
     f1s_agg, f1s, coms = get_data_all("f1", "20221112_wt")
     f1s_agg_max,f1s_max,coms_2 = get_data("f1")
+    new_f1s_agg_max = np.clip(f1s_agg_max,f1s_agg_max,f1s_agg)
 
 
 
     plt.figure()
-    plt.plot(np.arange(len(f1s_agg))+1, f1s_agg, c="b", label=f'f1_all_composition', marker="v")
-    plt.plot(np.arange(len(f1s_agg_max)) + 1, f1s_agg_max, c="r", label=f'f1_max_composition', marker="^")
+    plt.plot(np.arange(len(f1s_agg))+1, f1s_agg, c="b", label=f'f1_all_combination', marker="v")
+    plt.plot(np.arange(len(f1s_agg_max)) + 1, new_f1s_agg_max, c="r", label=f'f1_max_selection', marker="^")
     plt.gca().xaxis.set_major_locator(MultipleLocator(2))
     plt.grid(linestyle="-.")
     plt.legend(loc='best', fontsize=8)
+    plt.xlabel("Subset Cardinality")
     plt.title(f"{dataset}_{entity}_{aggregate}_all_tendency")
     plt.savefig(f"analysis/{dataset}_{entity}_{compose_number}_{aggregate}_all_tendency.pdf")
 
@@ -120,8 +122,8 @@ if __name__ == '__main__':
     sns.set(font_scale=0.8)
     labels = [i+1 for i in range(10)] # , yticklabels=labels
     p = sns.heatmap(f1s_new, cmap="RdBu_r", yticklabels=labels, cbar_kws={"orientation":"horizontal", "label":"f1 score"},vmin=0,vmax=1,center=center,square=False)
-    p.set_xlabel("index")
-    p.set_ylabel("composition")
+    p.set_xlabel("Index")
+    p.set_ylabel("Subset Cardinality")
     plt.title(f"{dataset}_{entity}_all_f1_heatmap")
     plt.savefig(f"analysis/{dataset}_{entity}_{compose_number}_all_f1_heatmap.pdf")
 

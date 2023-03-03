@@ -14,7 +14,7 @@ metric = "f1"
 aggregate = "max"
 
 # dataset = "SMD"
-# entity = "1-3"
+# entity = "1-4"
 # compose_number = 38
 # feature_number = 38
 # gap = 2
@@ -172,8 +172,8 @@ def render_heatmap(data_np,composition,type):
     p = sns.heatmap(data_pd,  cmap="RdBu_r", xticklabels=labels, yticklabels=labels,
                     cbar_kws={"label": f"{type}"}, vmin=0, vmax=1, center=center,
                     square=False)#yticklabels=ylabes,
-    p.set_ylabel("index")
-    p.set_xlabel("composition")
+    p.set_ylabel("Index")
+    p.set_xlabel("Subset Cardinality")
     plt.title(f"{dataset}_{entity}_{type}_heatmap")
     plt.savefig(f"analysis/{dataset}_{entity}_{compose_number}_{type}_heatmap.pdf")
 
@@ -206,12 +206,12 @@ if __name__ == '__main__':
     plt.plot(np.arange(len(precision_aggregated)) + 1, precision_aggregated, c="g", label=f'precision', marker="o")
     plt.plot(np.arange(len(recall_aggregated)) + 1, recall_aggregated, c="b", label=f'recall', marker="v")
     # plt.plot(np.arange(len(ree_aggregated)) + 1, ree_aggregated, c="k", label=f'ree', marker="<")
-    plt.plot(np.arange(len(auc_aggregated)) + 1, auc_aggregated, c="y", label=f'auc', marker=">")
+    # plt.plot(np.arange(len(auc_aggregated)) + 1, auc_aggregated, c="y", label=f'auc', marker=">")
     # plt.plot(np.arange(len(ree_aggregated)) + 1, ree_aggregated, c="r", label=f'ree_aggregated', marker="o")
     plt.gca().xaxis.set_major_locator(MultipleLocator(2))
     plt.grid(linestyle="-.")
     plt.legend(loc='best', fontsize=8)
-    plt.xlabel("composition")
+    plt.xlabel("Subset Cardinality")
     plt.title(f"{dataset}_{entity}_{aggregate}_tendency")
     plt.savefig(f"analysis/{dataset}_{entity}_{compose_number}_{aggregate}_tendency.pdf")
 
