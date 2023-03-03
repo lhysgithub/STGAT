@@ -69,6 +69,7 @@ class STGAT(nn.Module):
 
         self.bilstm = BiLSTMLayer(n_features * 3, lstm_hid_dim, lstm_n_layers, dropout)
         self.recon_model = ReconstructionModel(window_size, 2 * lstm_hid_dim, recon_hid_dim, out_dim, recon_n_layers, dropout)
+        self.forest = Forecasting_Model(2 * lstm_hid_dim, recon_hid_dim, out_dim, recon_n_layers*3, dropout)
 
     def forward(self, x, fc_edge_index, tc_edge_index):
         # x shape (b, n, k): b - batch size, n - window size, k - number of features
@@ -95,5 +96,6 @@ class STGAT(nn.Module):
         h_end = out_end.view(x.shape[0], -1)   # Hidden state for last timestamp
 
         recons = self.recon_model(h_end)
+        forest = self.forest(h_end)
 
-        return recons
+        return recons,forest

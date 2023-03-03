@@ -49,5 +49,5 @@ class EarlyStopping:
         #     'loss': val_loss,
         #     'model_state_dict': model.state_dict(),
         # }, self.store_path + f'/checkpoint_{int(time.time())}.pth')
-        # torch.save(model, self.store_path + f'/checkpoint_best.pth')
+        torch.save(model, self.store_path + f'/checkpoint_best.pth')
         self.val_loss_min = val_loss

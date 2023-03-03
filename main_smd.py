@@ -122,7 +122,7 @@ class Main(object):
                 y = y.unsqueeze(1) # lhy why?
 
                 # 正向传播
-                recons = model(x, fc_edge_index, tc_edge_index)
+                recons,forest = model(x, fc_edge_index, tc_edge_index)
 
                 if self.target_dims is not None:
                     x = x[:, :, self.target_dims] # 将输入数据处理成与重建输出相同的形状,如果为NASA数据集则只取第一个维度的数据
@@ -131,8 +131,9 @@ class Main(object):
                 if y.ndim == 3:
                     y = y.squeeze(1)
 
+                forest_loss = torch.sqrt(forecast_criterion(x, forest))
                 recon_loss = torch.sqrt(recon_criterion(x, recons)) # recon_criterion=nn.MSELoss()  + scipy.stats.entropy(x, recons)
-                loss = recon_loss
+                loss = recon_loss + forest_loss
 
                 # 方向梯度下降
                 optimizer.zero_grad()  # 梯度清零
@@ -198,7 +199,7 @@ class Main(object):
 
                 # Shifting input to include the observed value (y) when doing the reconstruction
                 recon_x = torch.cat((x[:, 1:, :], y_), dim=1)
-                window_recon = model(recon_x, fc_edge_index, tc_edge_index)
+                window_recon,_ = model(recon_x, fc_edge_index, tc_edge_index)
 
                 if self.target_dims is not None:
                     x = x[:, :, self.target_dims]
@@ -309,8 +310,8 @@ class Main(object):
         val_pred_df, val_anomaly_scores = self.get_score(val_recons, X_val)# todo 1 fix train_recons != val_recons 增加带标签的validation set
         test_pred_df, test_anomaly_scores = self.get_score(test_recons, X_test)
 
-        # np.save(f"{self.save_path}/val_anomaly_scores.npy", val_anomaly_scores)
-        # np.save(f"{self.save_path}/test_anomaly_scores.npy", test_anomaly_scores)
+        np.save(f"{self.save_path}/val_anomaly_scores.npy", val_anomaly_scores)
+        np.save(f"{self.save_path}/test_anomaly_scores.npy", test_anomaly_scores)
 
         # 如果分数进行了归一化
         # lhy 此处使用了多维度重构误差的平均值，作为每一个时间戳的异常分数
@@ -361,13 +362,13 @@ class Main(object):
         test_recons, X_test, test_label = self.predict(self.test_dataloader)
 
         # 保存输出
-        # np.save(f"{self.save_path}/test_actual.npy", np.concatenate(X_test))
-        # np.save(f"{self.save_path}/test_recons.npy", np.concatenate(test_recons))
-        # np.save(f"{self.save_path}/test_label.npy", np.concatenate(test_label))
-        #
-        # np.save(f"{self.save_path}/train_actual.npy", np.concatenate(X_train))
-        # np.save(f"{self.save_path}/train_recons.npy", np.concatenate(train_recons))
-        # np.save(f"{self.save_path}/train_label.npy", np.concatenate(train_label))
+        np.save(f"{self.save_path}/test_actual.npy", np.concatenate(X_test))
+        np.save(f"{self.save_path}/test_recons.npy", np.concatenate(test_recons))
+        np.save(f"{self.save_path}/test_label.npy", np.concatenate(test_label))
+
+        np.save(f"{self.save_path}/train_actual.npy", np.concatenate(X_train))
+        np.save(f"{self.save_path}/train_recons.npy", np.concatenate(train_recons))
+        np.save(f"{self.save_path}/train_label.npy", np.concatenate(train_label))
 
         # 依据预测值、实际值以及实际值的标签求取评分
         bf_eval, m_eval = self.model_metrics(test_recons, X_test, test_label,
